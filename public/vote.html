@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote — East Africa Changemakers Awards</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/mfumo.css" rel="stylesheet">
+</head>
+<body class="mfumo">
+    <nav class="navbar navbar-expand-lg navbar-custom flex-column align-items-stretch py-0">
+        <div class="mfumo-header-ticker" aria-label="East Africa Changemakers Awards">
+            <div class="mfumo-header-ticker__track">
+                <span class="mfumo-header-ticker__segment">EAST AFRICA CHANGEMAKERS AWARDS · Secure digital voting · Fair &amp; transparent · Celebrate excellence · </span>
+                <span class="mfumo-header-ticker__segment" aria-hidden="true">EAST AFRICA CHANGEMAKERS AWARDS · Secure digital voting · Fair &amp; transparent · Celebrate excellence · </span>
+            </div>
+        </div>
+        <div class="container py-2">
+            <a class="navbar-brand" href="/" title="East Africa Changemakers Awards">
+                <i class="fas fa-vote-yea" aria-hidden="true"></i> EA Changemakers
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navVote" aria-controls="navVote" aria-expanded="false" aria-label="Menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navVote">
+                <div class="navbar-nav ms-auto align-items-lg-center">
+                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="/results">Results</a>
+                    <div class="user-info px-lg-2 py-2 py-lg-0">
+                        <i class="fas fa-user-circle" aria-hidden="true"></i>
+                        <span id="username">Loading…</span>
+                    </div>
+                    <a class="nav-link" href="#" id="logoutLink">Sign out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="vote-container">
+            <div class="vote-header">
+                <h1 class="vote-title">
+                    <i class="fas fa-vote-yea text-primary"></i> Cast your vote
+                </h1>
+                <p class="text-muted mb-0">Pick one nominee per category, then submit. You can submit in steps.</p>
+            </div>
+            
+            <div id="alert" class="alert"></div>
+            
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading…</span>
+                </div>
+                <p class="mt-3">Loading elections…</p>
+            </div>
+            
+            <div id="electionsList"></div>
+            
+            <div class="text-center mt-4">
+                <button type="button" id="submitVote" class="btn btn-success vote-button" disabled>
+                    <i class="fas fa-check-circle"></i> Submit selected votes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmVoteModal" tabindex="-1" aria-labelledby="confirmVoteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="confirmVoteModalLabel"><i class="fas fa-shield-alt text-primary" aria-hidden="true"></i> Confirm votes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="confirmVoteSummary" class="small mb-2"></div>
+                    <p class="text-muted small mb-0">You cannot change your vote after submitting.</p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Back</button>
+                    <button type="button" class="btn btn-success px-4" id="confirmVoteSubmit"><i class="fas fa-lock" aria-hidden="true"></i> Submit now</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const fetchOpts = { credentials: 'include' };
+
+        /** Unsubmitted picks: electionId -> categoryId -> candidateId */
+        let pendingPicks = {};
+        let myVotesByCategory = {};
+        let activeBallots = [];
+        let confirmModal = null;
+        let pendingSubmitPayload = null;
+        const activeCategoryTabs = {};
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            confirmModal = new bootstrap.Modal(document.getElementById('confirmVoteModal'));
+            document.getElementById('logoutLink').addEventListener('click', (e) => {
+                e.preventDefault();
+                logout();
+            });
+            await loadUserInfo();
+            await loadMyVotes();
+            await loadActiveBallots();
+            document.getElementById('confirmVoteSubmit').addEventListener('click', submitVoteConfirmed);
+        });
+
+        function formatElectionDates(e) {
+            const parts = [];
+            if (e.start_date) {
+                parts.push('From: ' + new Date(e.start_date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }));
+            }
+            if (e.end_date) {
+                parts.push('Until: ' + new Date(e.end_date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }));
+            }
+            return parts.length ? `<div class="election-dates mt-2"><i class="far fa-calendar-alt"></i> ${parts.join(' · ')}</div>` : '';
+        }
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/me', fetchOpts);
+                if (!response.ok) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const data = await response.json();
+                document.getElementById('username').textContent = data.user.username;
+            } catch {
+                window.location.href = '/login';
+            }
+        }
+
+        async function loadMyVotes() {
+            try {
+                const response = await fetch('/api/my-votes', fetchOpts);
+                if (!response.ok) return;
+                const rows = await response.json();
+                myVotesByCategory = {};
+                rows.forEach((r) => {
+                    myVotesByCategory[r.category_id] = r.candidate_id;
+                });
+            } catch {
+                myVotesByCategory = {};
+            }
+        }
+
+        function ensurePending(electionId) {
+            if (!pendingPicks[electionId]) pendingPicks[electionId] = {};
+            return pendingPicks[electionId];
+        }
+
+        function countReadyToSubmit(electionId, categories) {
+            let n = 0;
+            for (const cat of categories) {
+                if (myVotesByCategory[cat.id]) continue;
+                const p = pendingPicks[electionId];
+                if (p && p[cat.id]) n++;
+            }
+            return n;
+        }
+
+        function updateSubmitButton() {
+            const btn = document.getElementById('submitVote');
+            let total = 0;
+            for (const b of activeBallots) {
+                total += countReadyToSubmit(b.election.id, b.categories);
+            }
+            btn.disabled = total === 0;
+        }
+
+        function switchCategoryTab(electionId, categoryId) {
+            const tabsWrap = document.getElementById(`tabs-${electionId}`);
+            const ballot = activeBallots.find((b) => b.election.id === electionId);
+            if (!tabsWrap || !ballot) return;
+
+            tabsWrap.querySelectorAll('.mfumo-cat-tab').forEach((btn) => {
+                const cid = parseInt(btn.dataset.tabCid, 10);
+                btn.classList.toggle('is-active', cid === categoryId);
+            });
+
+            (ballot.categories || []).forEach((cat) => {
+                const panel = document.getElementById(`cat-panel-${electionId}-${cat.id}`);
+                if (!panel) return;
+                if (cat.id === categoryId) {
+                    panel.classList.remove('d-none');
+                    panel.classList.remove('mfumo-cat-enter');
+                    requestAnimationFrame(() => {
+                        panel.classList.add('mfumo-cat-enter');
+                    });
+                } else {
+                    panel.classList.add('d-none');
+                    panel.classList.remove('mfumo-cat-enter');
+                }
+            });
+        }
+
+        async function loadActiveBallots() {
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const electionsList = document.getElementById('electionsList');
+
+            loadingSpinner.style.display = 'block';
+            electionsList.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/voting/active-ballots', fetchOpts);
+                if (!response.ok) {
+                    loadingSpinner.style.display = 'none';
+                    showAlert('danger', 'Failed to load ballots.');
+                    return;
+                }
+                activeBallots = await response.json();
+                loadingSpinner.style.display = 'none';
+
+                if (!activeBallots.length) {
+                    electionsList.innerHTML = `
+                        <div class="no-elections">
+                            <i class="fas fa-inbox"></i>
+                            <h3>No open elections</h3>
+                            <p>Nothing is open for voting yet, or categories/nominees are missing. Contact an administrator.</p>
+                            <a href="/results" class="btn btn-outline-primary mt-3">
+                                <i class="fas fa-chart-bar"></i> Results
+                            </a>
+                        </div>
+                    `;
+                    updateSubmitButton();
+                    return;
+                }
+
+                electionsList.innerHTML = '';
+                for (const ballot of activeBallots) {
+                    const e = ballot.election;
+                    const categories = ballot.categories || [];
+                    const allVoted =
+                        categories.length > 0 &&
+                        categories.every((c) => myVotesByCategory[c.id] != null);
+
+                    const block = document.createElement('div');
+                    block.className = 'election-card';
+                    block.dataset.electionId = e.id;
+                    block.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <h3 class="mb-0">${escapeHtml(e.title)}</h3>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                ${
+                                    allVoted
+                                        ? '<span class="voted-badge"><i class="fas fa-check-double"></i> Voted in all categories</span>'
+                                        : ''
+                                }
+                                <span class="election-status status-active">Open</span>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-2">${escapeHtml(e.description || '')}</p>
+                        ${formatElectionDates(e)}
+                        <div class="mfumo-ballot-tabs mt-3" id="tabs-${e.id}"></div>
+                        <div class="mfumo-ballot-categories mt-3" id="ballot-${e.id}"></div>
+                    `;
+                    electionsList.appendChild(block);
+
+                    const host = document.getElementById(`ballot-${e.id}`);
+                    const tabsHost = document.getElementById(`tabs-${e.id}`);
+                    if (!categories.length) {
+                        host.innerHTML =
+                            '<p class="text-muted">No categories yet. An admin must add categories first.</p>';
+                        continue;
+                    }
+
+                    if (!activeCategoryTabs[e.id]) {
+                        activeCategoryTabs[e.id] = categories[0].id;
+                    }
+
+                    tabsHost.innerHTML = categories
+                        .map((cat) => {
+                            const voted = myVotesByCategory[cat.id] != null;
+                            const pending = pendingPicks[e.id] && pendingPicks[e.id][cat.id];
+                            const active = activeCategoryTabs[e.id] === cat.id;
+                            return `
+                                <button type="button" class="mfumo-cat-tab ${active ? 'is-active' : ''}" data-tab-eid="${e.id}" data-tab-cid="${cat.id}">
+                                    <span>${escapeHtml(cat.name)}</span>
+                                    ${voted ? '<span class="badge rounded-pill text-bg-success">Voted</span>' : pending ? '<span class="badge rounded-pill text-bg-warning">Picked</span>' : ''}
+                                </button>
+                            `;
+                        })
+                        .join('');
+
+                    tabsHost.querySelectorAll('.mfumo-cat-tab').forEach((btn) => {
+                        btn.addEventListener('click', () => {
+                            const eid = parseInt(btn.dataset.tabEid, 10);
+                            const cid = parseInt(btn.dataset.tabCid, 10);
+                            activeCategoryTabs[eid] = cid;
+                            switchCategoryTab(eid, cid);
+                        });
+                    });
+
+                    for (const cat of categories) {
+                        const votedId = myVotesByCategory[cat.id];
+                        const isActiveCat = activeCategoryTabs[e.id] === cat.id;
+                        const catEl = document.createElement('div');
+                        catEl.className = `mfumo-category-block mb-4 ${isActiveCat ? '' : 'd-none'}`;
+                        catEl.id = `cat-panel-${e.id}-${cat.id}`;
+                        const nomineesCount = (cat.candidates || []).length;
+                        catEl.innerHTML = `
+                            <div class="mfumo-category-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h4 class="h5 mb-0">
+                                    <i class="fas fa-award text-primary" aria-hidden="true"></i>
+                                    ${escapeHtml(cat.name)}
+                                </h4>
+                                <span class="badge text-bg-light border">${nomineesCount} nominee(s)</span>
+                            </div>
+                            ${cat.description ? `<p class="small text-muted mb-2">${escapeHtml(cat.description)}</p>` : ''}
+                            <div class="mfumo-nominee-list" id="nominees-${e.id}-${cat.id}"></div>
+                        `;
+                        host.appendChild(catEl);
+                        renderNominees(e.id, cat, votedId);
+                    }
+                }
+                updateSubmitButton();
+            } catch {
+                loadingSpinner.style.display = 'none';
+                showAlert('danger', 'Failed to load elections.');
+            }
+        }
+
+        function renderNominees(electionId, cat, votedCandidateId) {
+            const list = document.getElementById(`nominees-${electionId}-${cat.id}`);
+            const cands = cat.candidates || [];
+            if (!cands.length) {
+                list.innerHTML = '<p class="text-muted small">No nominees in this category.</p>';
+                return;
+            }
+
+            const pending = pendingPicks[electionId] && pendingPicks[electionId][cat.id];
+            list.innerHTML = cands
+                .map((candidate) => {
+                    const img =
+                        candidate.image_url ||
+                        '';
+                    const isVoted = votedCandidateId === candidate.id;
+                    const isPick = pending === candidate.id;
+                    const locked = votedCandidateId != null;
+                    const disabled = locked ? 'disabled-voted' : '';
+                    const sel = isPick && !locked ? 'selected' : '';
+                    const badge = isVoted ? '<span class="badge bg-success ms-2">Your choice</span>' : '';
+                    const rank = cands.findIndex((x) => x.id === candidate.id) + 1;
+                    const initials = String(candidate.name || '?')
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((w) => w.charAt(0).toUpperCase())
+                        .join('');
+                    const avatar = img
+                        ? `<img src="${img.replace(/"/g, '')}" alt="" class="candidate-image" loading="lazy" referrerpolicy="no-referrer">`
+                        : `<div class="candidate-avatar-placeholder" aria-hidden="true">${escapeHtml(initials || '?')}</div>`;
+                    return `
+                <div class="candidate-card ${disabled} ${sel}" data-eid="${electionId}" data-cid="${cat.id}" data-cand="${candidate.id}" data-cname="${escapeAttr(candidate.name)}" data-ctitle="${escapeAttr(cat.name)}">
+                    <div class="d-flex align-items-center">
+                        ${avatar}
+                        <div class="candidate-info">
+                            <div class="candidate-name">${escapeHtml(candidate.name)}${badge}</div>
+                            <div class="candidate-description">${escapeHtml(candidate.description || '')}</div>
+                        </div>
+                        <div class="candidate-rank" title="Nominee rank">#${rank}</div>
+                        <div class="candidate-check">
+                            <i class="fas fa-check-circle fa-2x text-success" style="display: ${isPick || isVoted ? 'block' : 'none'};"></i>
+                        </div>
+                    </div>
+                </div>`;
+                })
+                .join('');
+
+            if (!votedCandidateId) {
+                list.querySelectorAll('.candidate-card:not(.disabled-voted)').forEach((card) => {
+                    card.addEventListener('click', () => {
+                        const eid = parseInt(card.dataset.eid, 10);
+                        const cid = parseInt(card.dataset.cid, 10);
+                        const cand = parseInt(card.dataset.cand, 10);
+                        const listEl = document.getElementById(`nominees-${eid}-${cid}`);
+                        listEl.querySelectorAll('.candidate-card').forEach((c) => {
+                            c.classList.remove('selected');
+                            const ic = c.querySelector('.fa-check-circle');
+                            if (ic) ic.style.display = 'none';
+                        });
+                        card.classList.add('selected');
+                        card.querySelector('.fa-check-circle').style.display = 'block';
+                        ensurePending(eid)[cid] = cand;
+                        updateSubmitButton();
+                    });
+                });
+            }
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function escapeAttr(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function buildSubmitChunks() {
+            const chunks = [];
+            for (const b of activeBallots) {
+                const eid = b.election.id;
+                const selections = [];
+                for (const cat of b.categories) {
+                    if (myVotesByCategory[cat.id] != null) continue;
+                    const pick = pendingPicks[eid] && pendingPicks[eid][cat.id];
+                    if (pick) selections.push({ categoryId: cat.id, candidateId: pick });
+                }
+                if (selections.length) chunks.push({ electionId: eid, selections });
+            }
+            return chunks;
+        }
+
+        function confirmSummaryHtml(chunks) {
+            let html = '<ul class="mb-0 ps-3 text-start">';
+            for (const ch of chunks) {
+                const ballot = activeBallots.find((x) => x.election.id === ch.electionId);
+                const title = ballot ? ballot.election.title : '';
+                html += `<li class="mb-2"><strong>${escapeHtml(title)}</strong><ul class="small mt-1">`;
+                for (const s of ch.selections) {
+                    const cat = ballot.categories.find((c) => c.id === s.categoryId);
+                    const cand = (cat && cat.candidates) || [];
+                    const cn = cand.find((c) => c.id === s.candidateId);
+                    html += `<li>${escapeHtml(cat ? cat.name : '')}: <strong>${escapeHtml(cn ? cn.name : '')}</strong></li>`;
+                }
+                html += '</ul></li>';
+            }
+            html += '</ul>';
+            return html;
+        }
+
+        document.getElementById('submitVote').addEventListener('click', () => {
+            const chunks = buildSubmitChunks();
+            if (!chunks.length) {
+                showAlert('warning', 'Choose a nominee in at least one category you have not voted in yet.');
+                return;
+            }
+            pendingSubmitPayload = chunks;
+            document.getElementById('confirmVoteSummary').innerHTML = confirmSummaryHtml(chunks);
+            confirmModal.show();
+        });
+
+        async function submitVoteConfirmed() {
+            const chunks = pendingSubmitPayload;
+            if (!chunks || !chunks.length) {
+                confirmModal.hide();
+                return;
+            }
+
+            const submitBtn = document.getElementById('confirmVoteSubmit');
+            submitBtn.disabled = true;
+
+            try {
+                for (const chunk of chunks) {
+                    const response = await fetch('/api/vote/batch', {
+                        ...fetchOpts,
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(chunk)
+                    });
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        showAlert('danger', data.error || 'Failed to submit votes');
+                        submitBtn.disabled = false;
+                        return;
+                    }
+                }
+                confirmModal.hide();
+                pendingSubmitPayload = null;
+                showAlert('success', 'Your votes have been saved.');
+                pendingPicks = {};
+                await loadMyVotes();
+                await loadActiveBallots();
+            } catch {
+                showAlert('danger', 'Network error. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { ...fetchOpts, method: 'POST' });
+            } catch {
+                /* ignore */
+            }
+            window.location.href = '/';
+        }
+
+        function showAlert(type, message) {
+            const alertDiv = document.getElementById('alert');
+            const icon =
+                type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle';
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = `<i class="fas fa-${icon}"></i> ${message}`;
+            alertDiv.style.display = 'block';
+            setTimeout(() => {
+                alertDiv.style.display = 'none';
+            }, 6000);
+        }
+    </script>
+</body>
+</html>

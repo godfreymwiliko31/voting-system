@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in — East Africa Changemakers Awards</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/mfumo.css" rel="stylesheet">
+</head>
+<body class="mfumo mfumo--auth">
+    <div class="mfumo-header-ticker mfumo-header-ticker--auth" aria-label="East Africa Changemakers Awards">
+        <div class="mfumo-header-ticker__track">
+            <span class="mfumo-header-ticker__segment">EAST AFRICA CHANGEMAKERS AWARDS · Secure digital voting · Fair &amp; transparent · Celebrate excellence · </span>
+            <span class="mfumo-header-ticker__segment" aria-hidden="true">EAST AFRICA CHANGEMAKERS AWARDS · Secure digital voting · Fair &amp; transparent · Celebrate excellence · </span>
+        </div>
+    </div>
+    <nav class="mfumo-auth-globalnav" aria-label="Main navigation">
+        <div class="container-fluid px-3 d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
+            <a class="navbar-brand mb-0" href="/" title="East Africa Changemakers Awards">
+                <i class="fas fa-vote-yea" aria-hidden="true"></i> EA Changemakers
+            </a>
+            <div class="navbar-nav flex-row flex-wrap align-items-center ms-md-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link fw-semibold text-primary" href="/login" aria-current="page">Sign in</a>
+                <a class="nav-link" href="/register">Register</a>
+                <a class="nav-link" href="/results">Results</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="login-container">
+        <div class="login-header">
+            <i class="fas fa-vote-yea text-primary" style="font-size: 2.75rem;" aria-hidden="true"></i>
+            <h2 class="login-title mt-3">Sign in</h2>
+            <p class="login-subtitle mb-0">Enter your username or email and password.</p>
+        </div>
+
+        <div id="alert" class="alert" role="alert"></div>
+
+        <form id="loginForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username or email</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-user" aria-hidden="true"></i></span>
+                    <input type="text" class="form-control" id="username" name="username" required autocomplete="username">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="password" class="form-label">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock" aria-hidden="true"></i></span>
+                    <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-login" id="loginSubmitBtn">
+                <i class="fas fa-sign-in-alt" aria-hidden="true"></i> <span>Sign in</span>
+            </button>
+        </form>
+
+        <div class="back-link back-link--auth">
+            <p class="mb-1">No account? <a href="/register">Register here</a></p>
+            <p class="mb-0"><a href="/"><i class="fas fa-home" aria-hidden="true"></i> Back to home</a></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('loginSubmitBtn');
+            const originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="mfumo-spinner me-2" aria-hidden="true"></span><span>Signing in...</span>';
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('success', 'Signed in successfully…');
+                    setTimeout(() => {
+                        window.location.href = data.user.role === 'admin' ? '/admin' : '/vote';
+                    }, 600);
+                } else {
+                    showAlert('danger', data.error || 'Sign-in failed');
+                }
+            } catch {
+                showAlert('danger', 'Network error. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+        });
+
+        function showAlert(type, message) {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertDiv.style.display = 'block';
+            setTimeout(() => {
+                alertDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

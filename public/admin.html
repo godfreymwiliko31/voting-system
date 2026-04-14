@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — East Africa Changemakers Awards</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/mfumo.css" rel="stylesheet">
+</head>
+<body class="mfumo">
+    <nav class="navbar navbar-expand-lg navbar-custom flex-column align-items-stretch py-0">
+        <div class="mfumo-header-ticker" aria-label="East Africa Changemakers Awards">
+            <div class="mfumo-header-ticker__track">
+                <span class="mfumo-header-ticker__segment">EAST AFRICA CHANGEMAKERS AWARDS · Secure digital voting · Fair &amp; transparent · Celebrate excellence · </span>
+                <span class="mfumo-header-ticker__segment" aria-hidden="true">EAST AFRICA CHANGEMAKERS AWARDS · Secure digital voting · Fair &amp; transparent · Celebrate excellence · </span>
+            </div>
+        </div>
+        <div class="container py-2">
+            <a class="navbar-brand" href="/" title="East Africa Changemakers Awards">
+                <i class="fas fa-vote-yea" aria-hidden="true"></i> EA Changemakers
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navAdmin" aria-controls="navAdmin" aria-expanded="false" aria-label="Menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navAdmin">
+                <div class="navbar-nav ms-auto align-items-lg-center">
+                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="/results">Results</a>
+                    <a class="nav-link" href="/vote">Vote</a>
+                    <div class="user-info px-lg-2 py-2 py-lg-0">
+                        <i class="fas fa-user-shield" aria-hidden="true"></i>
+                        <span id="adminUsername">Admin</span>
+                    </div>
+                    <a class="nav-link" href="#" id="adminLogout">Sign out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="admin-container">
+            <div class="admin-header">
+                <h1 class="admin-title">
+                    <i class="fas fa-cogs text-primary"></i> Admin Panel
+                </h1>
+                <p class="text-muted mb-0">East Africa Changemakers management: add categories and nominees directly for this event.</p>
+            </div>
+            
+            <div id="alert" class="alert"></div>
+            
+            <div class="row mb-4 g-3">
+                <div class="col-md-4">
+                    <div class="stats-card" style="background: linear-gradient(135deg, #1d4ed8, #3b82f6);">
+                        <div class="stats-number" id="totalCategories">0</div>
+                        <div class="stats-label">Categories</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card" style="background: linear-gradient(45deg, var(--warning-color), #f5b041);">
+                        <div class="stats-number" id="totalCandidates">0</div>
+                        <div class="stats-label">Nominees</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card" style="background: linear-gradient(45deg, #8e44ad, #9b59b6);">
+                        <div class="stats-number" id="totalVotes">0</div>
+                        <div class="stats-label">Votes cast</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-custom">
+                <h3 class="mb-3"><i class="fas fa-layer-group"></i> Categories &amp; nominees</h3>
+                <div id="candidatesManagement">
+                    <p class="text-muted mb-0">Loading event categories and nominees...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addCategoryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addCategoryForm">
+                        <input type="hidden" id="categoryElectionId">
+                        <div class="mb-3">
+                            <label for="categoryName" class="form-label">Category name</label>
+                            <input type="text" class="form-control" id="categoryName" required placeholder="e.g. Best Innovator">
+                        </div>
+                        <div class="mb-3">
+                            <label for="categoryNominees" class="form-label">Nominees list</label>
+                            <textarea class="form-control" id="categoryNominees" rows="4"></textarea>
+                        </div>
+                        <details class="mb-0 small">
+                            <summary class="text-muted mb-2 user-select-none">Display order (usually not needed)</summary>
+                            <label for="categorySort" class="form-label">Lower number appears first</label>
+                            <input type="number" class="form-control" id="categorySort" value="0" min="0">
+                        </details>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary-custom" id="addCategoryBtn" onclick="addCategory()">
+                        <i class="fas fa-plus"></i> Add category
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addNomineeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add nominee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addNomineeForm">
+                        <input type="hidden" id="nomineeCategoryId">
+                        <input type="hidden" id="nomineeElectionId">
+                        <p class="small text-muted mb-3" id="nomineeCategoryLabel"></p>
+                        <div class="mb-3">
+                            <label for="nomineeName" class="form-label">Nominee name</label>
+                            <input type="text" class="form-control" id="nomineeName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nomineeDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="nomineeDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nomineeImage" class="form-label">Image URL (optional)</label>
+                            <input type="url" class="form-control" id="nomineeImage" placeholder="https://...">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success-custom" id="addNomineeBtn" onclick="addNominee()">
+                        <i class="fas fa-plus"></i> Add nominee
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const fetchOpts = { credentials: 'include' };
+
+        let selectedElectionId = null;
+        let currentElection = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('adminLogout').addEventListener('click', (e) => {
+                e.preventDefault();
+                logout();
+            });
+            try {
+                const me = await fetch('/api/me', fetchOpts);
+                if (!me.ok) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const { user } = await me.json();
+                if (user.role !== 'admin') {
+                    window.location.href = '/vote';
+                    return;
+                }
+                document.getElementById('adminUsername').textContent = user.username;
+            } catch {
+                window.location.href = '/login';
+                return;
+            }
+            await loadPrimaryElection();
+            loadStatistics();
+        });
+
+        async function loadPrimaryElection() {
+            try {
+                const response = await fetch('/api/elections', fetchOpts);
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const elections = await response.json();
+                if (!Array.isArray(elections) || elections.length === 0) {
+                    document.getElementById('candidatesManagement').innerHTML =
+                        '<p class="text-muted mb-0">No election found for this event.</p>';
+                    return;
+                }
+                currentElection =
+                    elections.find((e) => String(e.title || '').toLowerCase().includes('east africa changemakers')) ||
+                    elections[0];
+                selectedElectionId = currentElection.id;
+                manageAwards(selectedElectionId);
+            } catch (error) {
+                showAlert('danger', 'Failed to load event details');
+            }
+        }
+
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/admin/stats', fetchOpts);
+                if (!response.ok) return;
+                const s = await response.json();
+                document.getElementById('totalCategories').textContent = s.totalCategories;
+                document.getElementById('totalCandidates').textContent = s.totalCandidates;
+                document.getElementById('totalVotes').textContent = s.totalVotes;
+            } catch {
+                /* ignore */
+            }
+        }
+
+        async function manageAwards(electionId) {
+            selectedElectionId = electionId;
+            const wrap = document.getElementById('candidatesManagement');
+            wrap.innerHTML = `
+                <div class="mfumo-inline-loader" role="status" aria-live="polite">
+                    <span class="mfumo-spinner" aria-hidden="true"></span>
+                    <span>Loading categories and nominees...</span>
+                </div>
+            `;
+
+            try {
+                const [cats] = await Promise.all([
+                    fetch(`/api/elections/${electionId}/categories`, fetchOpts).then((r) => r.json()),
+                    new Promise((resolve) => setTimeout(resolve, 350))
+                ]);
+                let html = `
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div>
+                            <h4 class="mb-0">${escapeHtml(currentElection ? currentElection.title : 'East Africa Changemakers Awards')}</h4>
+                            <div class="small text-muted">List of nominees by category.</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-warning-custom btn-custom" onclick="toggleCurrentElection()">
+                                <i class="fas fa-toggle-${currentElection && currentElection.is_active ? 'on' : 'off'}"></i>
+                                ${currentElection && currentElection.is_active ? 'Close voting' : 'Open voting'}
+                            </button>
+                            <button type="button" class="btn btn-primary-custom btn-custom" onclick="showAddCategoryModal()">
+                                <i class="fas fa-folder-plus"></i> Add category
+                            </button>
+                        </div>
+                    </div>`;
+
+                if (!cats.length) {
+                    html += `
+                        <div class="mfumo-nominee-empty">
+                            <h5 class="mb-1"><i class="fas fa-users text-primary me-1"></i> List of nominees</h5>
+                            <p class="text-muted mb-2">No categories yet. Add your first category to start listing nominees below it.</p>
+                        </div>
+                    `;
+                    wrap.innerHTML = html;
+                    return;
+                }
+
+                const categoryBlocks = await Promise.all(
+                    cats.map(async (cat) => {
+                        const cands = await fetch(`/api/categories/${cat.id}/candidates`, fetchOpts).then((r) =>
+                            r.json()
+                        );
+                        return { cat, cands: Array.isArray(cands) ? cands : [] };
+                    })
+                );
+
+                for (const block of categoryBlocks) {
+                    const cat = block.cat;
+                    const cands = block.cands;
+                    html += `
+                    <div class="mfumo-category-admin card border mb-3">
+                        <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <strong>${escapeHtml(cat.name)}</strong>
+                                <span class="badge bg-secondary ms-1">${cands.length} nominee(s)</span>
+                                ${cat.description ? `<div class="small text-muted mt-1">${escapeHtml(cat.description)}</div>` : ''}
+                            </div>
+                            <div class="d-flex flex-wrap gap-1">
+                                <button type="button" class="btn btn-sm btn-success-custom" onclick="showAddNomineeModal(${cat.id}, ${JSON.stringify(cat.name)})">
+                                    <i class="fas fa-user-plus"></i> Nominee
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCategory(${electionId}, ${cat.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body py-2">
+                            ${
+                                cands.length === 0
+                                    ? '<p class="text-muted small mb-0">No nominees in this category.</p>'
+                                    : cands
+                                          .map(
+                                              (c, idx) => {
+                                                  const initials = String(c.name || '?')
+                                                      .split(/\s+/)
+                                                      .filter(Boolean)
+                                                      .slice(0, 2)
+                                                      .map((w) => w.charAt(0).toUpperCase())
+                                                      .join('');
+                                                  return `
+                                <div class="candidate-item candidate-item--modern">
+                                    <div class="candidate-item__rank">#${idx + 1}</div>
+                                    <div class="candidate-item__avatar" aria-hidden="true">${escapeHtml(initials || '?')}</div>
+                                    <div class="candidate-item__body">
+                                        <strong>${escapeHtml(c.name)}</strong>
+                                        <br><small class="text-muted">${escapeHtml(c.description || '')}</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-danger-custom" onclick="removeNominee(${cat.id}, ${c.id})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>`;
+                                              }
+                                          )
+                                          .join('')
+                            }
+                        </div>
+                    </div>`;
+                }
+                wrap.innerHTML = html;
+            } catch {
+                showAlert('danger', 'Failed to load categories');
+            }
+        }
+
+        async function toggleCurrentElection() {
+            if (!selectedElectionId) return;
+            try {
+                const response = await fetch(`/api/elections/${selectedElectionId}/toggle`, {
+                    ...fetchOpts,
+                    method: 'PUT'
+                });
+                const data = await response.json().catch(() => ({}));
+                if (response.ok) {
+                    showAlert('success', data.message || 'Voting status updated');
+                    await loadPrimaryElection();
+                    loadStatistics();
+                } else {
+                    showAlert('danger', data.error || 'Failed to update voting status');
+                }
+            } catch {
+                showAlert('danger', 'Network error');
+            }
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function showAddCategoryModal() {
+            document.getElementById('categoryElectionId').value = selectedElectionId;
+            document.getElementById('addCategoryForm').reset();
+            document.getElementById('categoryElectionId').value = selectedElectionId;
+            document.getElementById('categorySort').value = '0';
+            new bootstrap.Modal(document.getElementById('addCategoryModal')).show();
+        }
+
+        async function addCategory() {
+            const addBtn = document.getElementById('addCategoryBtn');
+            const originalBtnHtml = addBtn ? addBtn.innerHTML : '';
+            const electionId = document.getElementById('categoryElectionId').value;
+            const name = document.getElementById('categoryName').value.trim();
+            const nomineesRaw = document.getElementById('categoryNominees').value;
+            const sort_order = document.getElementById('categorySort').value;
+            if (!name) {
+                showAlert('warning', 'Enter a category name');
+                return;
+            }
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.innerHTML = '<span class="mfumo-spinner me-2" aria-hidden="true"></span><span>Saving...</span>';
+            }
+            try {
+                const response = await fetch(`/api/elections/${electionId}/categories`, {
+                    ...fetchOpts,
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description: null, sort_order: parseInt(sort_order, 10) || 0 })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    const categoryId = data.categoryId;
+                    const nominees = String(nomineesRaw || '')
+                        .split('\n')
+                        .map((n) => n.trim())
+                        .filter(Boolean);
+
+                    let addedNominees = 0;
+                    for (const nomineeName of nominees) {
+                        const r = await fetch(`/api/categories/${categoryId}/candidates`, {
+                            ...fetchOpts,
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: nomineeName, description: null, image_url: null })
+                        });
+                        if (r.ok) {
+                            addedNominees += 1;
+                        }
+                    }
+
+                    showAlert(
+                        'success',
+                        addedNominees > 0
+                            ? `Category added with ${addedNominees} nominee(s)`
+                            : 'Category added'
+                    );
+                    bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
+                    manageAwards(parseInt(electionId, 10));
+                    loadStatistics();
+                } else {
+                    showAlert('danger', data.error || 'Something went wrong');
+                }
+            } catch {
+                showAlert('danger', 'Network error');
+            } finally {
+                if (addBtn) {
+                    addBtn.disabled = false;
+                    addBtn.innerHTML = originalBtnHtml;
+                }
+            }
+        }
+
+        function showAddNomineeModal(categoryId, categoryName) {
+            document.getElementById('nomineeCategoryId').value = categoryId;
+            document.getElementById('nomineeElectionId').value = selectedElectionId;
+            document.getElementById('nomineeCategoryLabel').textContent =
+                'Category: ' + (categoryName || '#' + categoryId);
+            document.getElementById('addNomineeForm').reset();
+            document.getElementById('nomineeCategoryId').value = categoryId;
+            document.getElementById('nomineeElectionId').value = selectedElectionId;
+            new bootstrap.Modal(document.getElementById('addNomineeModal')).show();
+        }
+
+        async function addNominee() {
+            const addBtn = document.getElementById('addNomineeBtn');
+            const originalBtnHtml = addBtn ? addBtn.innerHTML : '';
+            const categoryId = document.getElementById('nomineeCategoryId').value;
+            const electionId = document.getElementById('nomineeElectionId').value;
+            const name = document.getElementById('nomineeName').value.trim();
+            const description = document.getElementById('nomineeDescription').value;
+            const image_url = document.getElementById('nomineeImage').value;
+            if (!name) {
+                showAlert('warning', 'Enter a nominee name');
+                return;
+            }
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.innerHTML = '<span class="mfumo-spinner me-2" aria-hidden="true"></span><span>Saving...</span>';
+            }
+            try {
+                const response = await fetch(`/api/categories/${categoryId}/candidates`, {
+                    ...fetchOpts,
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, image_url })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showAlert('success', 'Nominee added');
+                    bootstrap.Modal.getInstance(document.getElementById('addNomineeModal')).hide();
+                    manageAwards(parseInt(electionId, 10));
+                    loadStatistics();
+                } else {
+                    showAlert('danger', data.error || 'Something went wrong');
+                }
+            } catch {
+                showAlert('danger', 'Network error');
+            } finally {
+                if (addBtn) {
+                    addBtn.disabled = false;
+                    addBtn.innerHTML = originalBtnHtml;
+                }
+            }
+        }
+
+        async function removeCategory(electionId, categoryId) {
+            if (!confirm('Delete this category and its nominees? (Not allowed if votes exist.)')) return;
+            try {
+                const response = await fetch(`/api/elections/${electionId}/categories/${categoryId}`, {
+                    ...fetchOpts,
+                    method: 'DELETE'
+                });
+                const data = await response.json().catch(() => ({}));
+                if (response.ok) {
+                    showAlert('success', data.message || 'Deleted');
+                    manageAwards(electionId);
+                    loadStatistics();
+                } else {
+                    showAlert('danger', data.error || 'Delete failed');
+                }
+            } catch {
+                showAlert('danger', 'Network error');
+            }
+        }
+
+        async function removeNominee(categoryId, candidateId) {
+            if (!confirm('Delete this nominee?')) return;
+            try {
+                const response = await fetch(`/api/categories/${categoryId}/candidates/${candidateId}`, {
+                    ...fetchOpts,
+                    method: 'DELETE'
+                });
+                const data = await response.json().catch(() => ({}));
+                if (response.ok) {
+                    showAlert('success', data.message || 'Deleted');
+                    manageAwards(selectedElectionId);
+                    loadStatistics();
+                } else {
+                    showAlert('danger', data.error || 'Something went wrong');
+                }
+            } catch {
+                showAlert('danger', 'Network error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { ...fetchOpts, method: 'POST' });
+            } catch {
+                /* ignore */
+            }
+            window.location.href = '/';
+        }
+
+        function showAlert(type, message) {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                ${message}
+            `;
+            alertDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                alertDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
