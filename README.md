@@ -15,7 +15,7 @@ Mfumo wa kisasa na salama wa kura za kidijitali uliouzwa kwa lugha ya Kiswahili.
 ## Teknolojia Zilizotumika
 
 - **Backend**: Node.js, Express.js
-- **Database**: SQLite3
+- **Database**: SQLite (data hudumu kwenye faili)
 - **Frontend**: HTML5, CSS3, JavaScript, Bootstrap 5
 - **Usalama**: bcryptjs, express-session (cookies)
 - **Chati**: Chart.js
@@ -59,12 +59,7 @@ npm start
 
 ## Muundo wa Database
 
-Mfumo hutumia database ya SQLite yenye tables zifuatazo:
-
-- `users`: Maelezo ya watumiaji
-- `elections`: Maelezo ya uchaguzi
-- `candidates`: Maelezo ya wagombea
-- `votes`: Rekodi za kura zilizopigwa
+Mfumo hutumia SQLite na hutengeneza schema moja kwa moja kwenye startup.
 
 ## Usalama
 
@@ -73,35 +68,16 @@ Mfumo hutumia database ya SQLite yenye tables zifuatazo:
 - Sessions zinatumika kwa ajili ya uthibitisho
 - SQL injection inazuiliwa kwa kutumia prepared statements
 
-## Hosting / production (English)
+## Hosting / production (muhtasari)
 
-Before exposing this app on the internet:
+Kwa ku-host toleo hili rahisi:
 
-1. **Environment**
-   - Set `NODE_ENV=production`.
-   - Set `SESSION_SECRET` to a long random string (**at least 24 characters**). The app **exits on startup** if this is missing in production.
-   - Optional: `VOTING_DB_PATH` to point SQLite at a writable path (e.g. a mounted volume).
-   - Behind nginx/Caddy/etc.: set `TRUST_PROXY_HOPS` if you use multiple hops (default `1`). The app uses `trust proxy` so `Secure` session cookies work when TLS is terminated at the proxy.
+- Tumia `npm install` kisha `npm start` (itaitumia `server.js`).
+- Weka `PORT` ukihitaji kubadili port.
+- Weka `DB_PATH` kama unataka kubadili path ya `voting.db` (angalia `.env.example`).
+- Kwa production: weka `NODE_ENV=production` na `SESSION_SECRET` (≥ herufi 24).
 
-1b. **First admin (no demo accounts)**  
-   Register the first user through `/register`, then grant admin in SQLite (example for DB Browser or `sqlite3` CLI):
-
-   `UPDATE users SET role = 'admin' WHERE username = 'YOUR_USERNAME';`
-
-1c. **How votes are counted**  
-   Each saved choice is one row in the `votes` table (`user_id`, `election_id`, `category_id`, `candidate_id`). The results page and `GET /api/elections/:id/results` **count rows per nominee** with SQL (`COUNT(v.id)`), so totals update automatically whenever someone submits a vote.
-
-2. **HTTPS**
-   - In production, session cookies use `secure: true`. Users must access the site over **HTTPS**, or logins will not persist.
-
-3. **SQLite limits**
-   - Fine for small/medium traffic. For very high concurrency or strict HA, plan a migration to PostgreSQL or another server database.
-
-4. **Operational**
-   - Back up `voting.db` regularly.
-   - Open registration means anyone can create accounts; add moderation, invites, or rate limiting if you need stricter control (not built in yet).
-
-See `.env.example` for variable names. **Mwongozo wa ku-host mtandaoni:** soma [HOSTING.md](HOSTING.md).
+Mwongozo mfupi wa ku-host mtandaoni: soma [HOSTING.md](HOSTING.md).
 
 ## API Endpoints
 
@@ -127,9 +103,9 @@ See `.env.example` for variable names. **Mwongozo wa ku-host mtandaoni:** soma [
 ## Maelezo ya Kiufundi
 
 - Port ya chaguo-msingi: 3000
-- Database file: `voting.db` (itaundwa otomatiki)
+- Database file: `data/voting.db` (itatengenezwa otomatiki)
 - Static files: `public/` directory
-- Session secret: Inaweza kubadilishwa kwenye `server.js`
+- Session secret: unaweza kuweka `SESSION_SECRET` kwenye mazingira
 
 ## Matengenezo
 
